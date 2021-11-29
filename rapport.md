@@ -4,6 +4,10 @@
 
 ## Introduction
 
+Dans ce laboratoire, nous allons déployer une applcation web 
+
+TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 ## Tâches
 
 ### 1. Installation des outils
@@ -30,27 +34,39 @@ Nous pouvons à présent vérifier que les 3 containers tournent avec la command
 docker ps
 ```
 
-Nous constatons q'il y a un réseau virtuel qui a été créé pour le labo 3 avec la commande:
+![task01-01-docker-ps](img/task01-01-docker-ps.png)
+
+Nous constatons qu'il y a un réseau virtuel qui a été créé pour le labo 3 avec la commande:
 
 ```sh
 docker network ls
 ```
 
+![task01-01-docker-net-ls](img/task01-01-docker-net-ls.png)
+
 Une fois toute la mise en place faite, nous pouvons nous rendre sur le load balancer via l'adresse `http://192.168.42.42`.
 
-Nous constatons que le `NODESESSID` est bien envoyé à notre navigateur:
+En contrôlant, la requête de la page, nous constatons que le `NODESESSID` est bien envoyé à notre navigateur.
 
 #### 1.1
 
 > Explain how the load balancer behaves when you open and refresh the URL http://192.168.42.42 in your browser. Add screenshots to complement your explanations. We expect that you take a deeper a look at session management.
 
-alternance entre les deux, round-robin
+Résultat lorsqu'on se rend sur `http://192.168.42.42` pour la première fois:
 
-![task01-02-5-http-set-cookie](img/task01-02-5-http-set-cookie.png)
+![task01-02-http-set-cookie_crop1](img/task01-02-http-set-cookie_crop1.png)
 
-cookie envoyé à chaque fois
+Lorsque l'on rafraîchit la page:
 
-![task01-02-http-set-cookie](img/task01-02-http-set-cookie.png)
+![task01-02-5-http-set-cookie_crop2](img/task01-02-5-http-set-cookie_crop2.png)
+
+On constate qu'il y a une alternance entre les deux serveurs à chaque fois qu'on rafraîchit la page. Le round-robin est utilisé puisque c'est une fois l'un et une fois l'autre. 
+
+Nous remarquons que le `sessionViews` est à 1, peu importe le nombre d'accès au serveur qu'on fait. Cela est dû au fait qu'aucune session n'est créée. 
+
+Nous voyons également que les cookies ne sont pas pris en compte par le load balancing à cette étape. Ceci ne permet donc pas de garder un état entre les connexions dû au fait que le protocole HTTP est un protocole sans état. Il serait possible de maintenir cette connexion à l'aide d'un cookie.
+
+TODO: set-cookie entre serveurs
 
 #### 1.2
 
