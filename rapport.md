@@ -1,3 +1,5 @@
+
+
 # Labo 3 - Load Balancing
 
 > Auteurs: Gwendoline Dössegger, Noémie Plancherel, Gaby Roch
@@ -179,15 +181,36 @@ peut avoir des soucis
 
 > Provide the modified `haproxy.cfg` file with a short explanation of the modifications you did to enable sticky session management.
 
+````sh
+# Define the list of nodes to be in the balancing mechanism
+# http://cbonte.github.io/haproxy-dconv/2.2/configuration.html#4-server
+server s1 ${WEBAPP_1_IP}:3000 cookie S1 check
+server s2 ${WEBAPP_2_IP}:3000 cookie S2 check
+
+cookie SERVERID insert
 ````
-//LIGNE DANS fichier config
-````
+
+![task02-02](img/task02-02-diff-config-haproxy.png)
+
+
 
 #### 2.3
 
 > Explain what is the behavior when you open and refresh the URL http://192.168.42.42 in your browser. Add screenshots to complement your explanations. We expect that you take a deeper a look at session management.
 
+
+
 screenshotss
+
+
+
+![task02-03-request-01](img/task02-03-request-01.png)
+
+
+
+![task02-03-request-02](img/task02-03-request-02.png)
+
+
 
 #### 2.4
 
@@ -220,20 +243,134 @@ H -> B2:  JSON \n
 #### 2.5
 
 > Provide a screenshot of JMeter's summary report. Is there a difference with this run and the run of Task 1?
-
-
-
-#### 2.6
-
+>
 > Now, update the JMeter script. Go in the HTTP Cookie Manager and ~~uncheck~~verify that the box `Clear cookies each iteration?` is unchecked.
+
+![](/home/wewelox/Documents/heig-ait-lab/Labo_3/img/task02-05-jmeter-with-serverid.png)
+
+
+
+#### 2.7
+
+> Provide a screenshot of JMeter's summary report. Give a short explanation of what the load balancer is doing.
+
+
+
+![](img/task02-07-jmeter.png)
 
 
 
 ### 3. Le drainage des connexions
 
+#### 3.1
+
+> Take a screenshot of step 5 and tell us which node is answering.
+
+![](img/task-03-01-00.png)![](img/task03-01-01.png)
+
+encadré s1 + s2 nodes + state
+
+
+
+#### 3.2
+
+> Based on your previous answer, set the node in DRAIN mode. Take a screenshot of the HAProxy state page.
+
+```sh
+set server nodes/s2 state drain
+```
+
+![](img/task03-02.png)
+
+
+
+#### 3.3
+
+> Refresh your browser and explain what is happening. Tell us if you stay on the same node or not. If yes, why? If not, why?
+
+Nous sommes toujours sur le même noeud car le cookie nous indique que nous devons aller sur ce noeud (`s2`) et donc HAProxy nous laisse communiquer avec le `s2`. 
+
+
+
+Drain : explain
+
+![](img/task03-02-01.png)
+
+
+
+#### 3.4
+
+> Open another browser and open `http://192.168.42.42`. What is happening?
+
+Nous sommes sur le s1 car c'est une nouvelle connexion.
+
+![](img/task03-04-01.png)
+
+#### 3.5
+
+> Clear the cookies on the new browser and repeat these two steps multiple times. What is happening? Are you reaching the node in DRAIN mode?
+
+
+
+On se retrouve de nouveau sur le s1 ce qui est normal. => expliquer pq
+
+![](/home/wewelox/Documents/heig-ait-lab/Labo_3/img/task03-05-01.png)![](img/task03-05-02.png)
+
+
+
+#### 3.6
+
+> Reset the node in READY mode. Repeat the three previous steps and explain what is happening. Provide a screenshot of HAProxy's stats page.
+
+![](img/task03-06-00.png)
+
+Après avoir supprimé les cookies sur les deux navigateurs :
+
+- Firefox : après refresh, on reste sur s2
+  - pourquoi :
+- Chrome :  
+  - comment : chrome obtient une session vers un des noeuds, on a une chance sur deux de tomber sur 1 et une chance sur deux de tomber sur 2. => car round-robin. On était tombé sur s1
+  - après, clear cookies : cette fois-ci on tombe sur s2
+  - sur s1 après clear
+  - sur s2 après clear
+  - CAR round-robin
+
+![](img/task03-06-01.png)
+
+
+
+#### 3.7
+
+> Finally, set the node in MAINT mode. Redo the three same steps and explain what is happening. Provide a screenshot of HAProxy's stats page.
+
+![](img/task03-07-00.png)
+
+- Firefox : refresh : on a été placé sur le s1 alors que de base on était sur le s2
+
+- chrome : refresh, on est toujours sur s1
+  - après supp cookies, on est toujours sur s1
+  - après supp cookies, one st encore et toujorus sur s1
+
+
+
 ### 4. Le mode dégradé avec Round Robin
 
+1. Make sure a delay of 0 milliseconds is set on `s1`. Do a run to have a baseline to compare with in the next experiments.
+2. Set a delay of 250 milliseconds on `s1`. Relaunch a run with the JMeter script and explain what is happening.
+3. Set a delay of 2500 milliseconds on `s1`. Same than previous step.
+4. In the two previous steps, are there any errors? Why?
+5. Update the HAProxy configuration to add a weight to your nodes. For that, add `weight [1-256]` where the value of weight is between the two values (inclusive). Set `s1` to 2 and `s2` to 1. Redo a run with a 250ms delay.
+6. Now, what happens when the cookies are cleared between  each request and the delay is set to 250ms? We expect just one or two  sentence to summarize your observations of the behavior with/without  cookies.
+
+
+
 ### 5. Les stratégies de load balancing
+
+1. Briefly explain the strategies you have chosen and why you have chosen them.
+2. Provide evidence that you have played with the two strategies (configuration done, screenshots, ...)
+3. Compare the two strategies and conclude which is the best for this lab (not necessary the best at all).
+
+
 
 ## Conclusion
 
