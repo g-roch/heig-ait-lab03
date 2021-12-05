@@ -363,36 +363,71 @@ on envoie une requête POST avec un delay de 0 milliseconds pour être sûr qu'o
 
 ```sh
 curl -H "Content-Type: application/json" -X POST -d '{"delay": 0}' http://192.168.42.11:3000/delay
-curl -H "Content-Type: application/json" -X POST -d '{"delay": 0}' http://192.168.42.21:3000/delay
+curl -H "Content-Type: application/json" -X POST -d '{"delay": 0}' http://192.168.42.22:3000/delay
 ```
 
-
+![](img/task04-01.png)
 
 #### 4.2
 
 > Set a delay of 250 milliseconds on `s1`. Relaunch a run with the JMeter script and explain what is happening.
 
+```sh
+curl -H "Content-Type: application/json" -X POST -d '{"delay": 250}' http://192.168.42.11:3000/delay
+# résultat
+{"message":"New timeout of 250ms configured."} 
+```
 
+![](img/task04-02.png)
+
+Nous n'avons pas attendu que S1 effectue ses 1000 requêtes car cela nous aurait pris trop de temps d'attendre la fin du rapport.
+
+Nous constatons effectivement que S1 effectue des requêtes toutes les 250 millisecondes. Nous remarquons également qu'il n'y pas eu d'erreurs lors du test malgré la lenteur de notre service.
 
 #### 4.3
 
 > Set a delay of 2500 milliseconds on `s1`. Same than previous step.
 
+```sh
+curl -H "Content-Type: application/json" -X POST -d '{"delay": 2500}' http://192.168.42.11:3000/delay
+# résultat
+{"message":"New timeout of 2500ms configured."} 
+```
 
+
+
+![](img/task04-03.png)
+
+Nous voyons que S1 a uniquement effectué 2 requêtes car il avait un temps de réponse relativement lent et que HAProxy a redirigé les requêtes vers S2.
 
 #### 4.4
 
 > In the two previous steps, are there any errors? Why?
 
-
+Nous constatons que pour l'étape 2, avec un delay de 250ms, il y a 0.08% d'erreur pour les requêtes ce qui correspond à une requête échouée lorsqu'on a cliqué sur le bouton stop et que la réponse n'était pas encore arrivée.
 
 #### 4.5
 
 > Update the HAProxy configuration to add a weight to your nodes. For that, add `weight [1-256]` where the value of weight is between the two values (inclusive). Set `s1` to 2 and `s2` to 1. Redo a run with a 250ms delay.
 
+```sh
+    # Define the list of nodes to be in the balancing mechanism
+    # http://cbonte.github.io/haproxy-dconv/2.2/configuration.html#4-server
+    server s1 ${WEBAPP_1_IP}:3000 cookie S1 check weight 2
+    server s2 ${WEBAPP_2_IP}:3000 cookie S2 check weight 1
+```
+
+![](img/task04-04.png)
+
 #### 4.6
 
-> Now, what happens when the cookies are cleared between  each request and the delay is set to 250ms? We expect just one or two  sentence to summarize your observations of the behavior with/without  cookies.
+> Now, what happens when the cookies are cleared between each request and the delay is set to 250ms? We expect just one or two sentence to summarize your observations of the behavior with/without cookies.
+
+> Rapport sans les cookies
+
+![](img/task04-05.png)
+
+Nous remarquons donc qu'en nettoyant les cookies entre chaque requêtes, 2/3 des requêtes vont sur S1 et le tiers restant sur S2, on peut expliquer cela avec le fait que S1 a un poids de 2 et S2 un poids de 1, donc S1 reçoit logiquement 2x plus de requêtes que S2. Alors qu'avec les cookies, chaque serveur reçoit 1000 requêtes car lorsqu'un client est connecté à un noeud, il y restera connecté jusqu'à la fin du test (malgré la lenteur du service). 
 
 
 
@@ -402,17 +437,94 @@ curl -H "Content-Type: application/json" -X POST -d '{"delay": 0}' http://192.16
 
 > Briefly explain the strategies you have chosen and why you have chosen them.
 
+> leastconn
+
+La stratégie `leastconn` permet au serveur qui a le moins de connexions, de recevoir la nouvelle connexion.  Elle utilise round-robin dans le cas où la charge est égale sur tous les serveurs pour s'assurer qu'ils seront tous utilisés. L'algorithme est dynamique dans le sens où les poids des serveurs seront ajustés en fonction du nombre de connexions actives.
+
+Nous avons décidé de choisir cette stratégie car elle peut être intéressante lors d'ajout de delay sur un serveur.
+
+> first
+
+La stratégie `first` permet à un serveur qui a des slots de connexions de libre, de recevoir la nouvelle connexion. Le serveur est choisi en fonction de son id de manière croissante. Dès qu'un serveur atteint son nombre maximum de connexion (`maxconn`), c'est le serveur suivant qui sera utilisé. Le but de cet algorithme c'est d'optimiser le nombre de serveurs utilisés.
+
+Nous avons décidé d'utiliser cette stratégie car il permet d'éteindre les serveurs avec des grands id lorsqu'il y a peu de charge sur l'application.
+
 #### 5.2
 
 > Provide evidence that you have played with the two strategies (configuration done, screenshots, ...)
+
+> leastconn
+
+Configuration dans HAProxy
+
+```sh
+    # Define the balancing policy
+    # http://cbonte.github.io/haproxy-dconv/2.2/configuration.html#balance
+    balance leastconn
+```
+
+> Nettoyage des cookies, sans delay
+
+![](img/task05-01-01.png)
+
+S2 a un peu plus travaillé que S1, car à un moment donné S1 devait être un peu plus chargé que S2, mais de manière générale la charge est répartie de manière égale.
+
+> Nettoyage des cookies, delay de 250ms sur S1
+
+![](img/task05-01-02.png)
+
+Nous pouvons constater que S1 étant plus lent à répondre, il a donc traité moins de requêtes.
+
+> Nettoyage des cookies, delay de 2500ms sur S1
+
+![](img/task05-01-03.png)
+
+Nous pouvons constater que S1 étant plus lent à répondre, il a donc traité moins de requêtes.
+
+> first
+
+Configuration dans HAProxy
+
+```sh
+    # Define the balancing policy
+    # http://cbonte.github.io/haproxy-dconv/2.2/configuration.html#balance
+    balance first
+    # Define the list of nodes to be in the balancing mechanism
+    # http://cbonte.github.io/haproxy-dconv/2.2/configuration.html#4-server
+    server s1 ${WEBAPP_1_IP}:3000 cookie S1 check maxconn 2
+    server s2 ${WEBAPP_2_IP}:3000 cookie S2 check maxconn 2
+```
+
+> Nettoyage des cookies, sans delay, avec 2 threads
+
+![](img/task05-02-01.png)
+
+Nous avons configuré JMeter pour utiliser 2 threads et vu que HAProxy est configuré pour avoir 2 connexions par serveur, nous tombons que sur S1 car à aucun moment nous avons suffisament de connexions ouvertes pour que HAProxy nous envoie sur S2.
+
+> Nettoyage des cookies, sans delay, avec 3 threads
+
+![](img/task05-02-02.png)
+
+En ayant configuré JMeter avec 3 threads, nous voyons que HAProxy redirige à peu près 1/3 des connexions sur S2. Nous constatons que c'est en dessous de 1/3 car il y a certainement des moments de vide lors des requêtes que fait JMeter et donc HAProxy repasse sur deux serveurs.
+
+> Nettoyage des cookies, avec un delay de 250ms sur S1, avec 3 threads
+
+![](img/task05-02-03.png)
+
+Nous remarquons que 1/5 des requêtes sont envoyées sur S1, alors que nous avons que 3 threads et que S1 traite deux requêtes en parallèle. Malgré que S1 soit lent, nous voyons que notre service est encore passablement rapide pour une grande majorité des utilisateurs.
 
 #### 5.3
 
 > Compare the two strategies and conclude which is the best for this lab (not necessary the best at all).
 
-
+En comparant tous les tests qu'on a effectué, nous remarquons que `first`  est la meilleures stratégie pour ce laboratoire car il permet de faire en sorte d'aligner la charge d'un serveur en fonction de sa capacité calculée en amont et de permettre d'éteindre les serveurs non-utilisés. 
 
 ## Conclusion
 
+TODO!!!!!!!!!!!!!!!!!!!!!!!
+
 ## Annexes
 
+https://d2c.io/post/haproxy-load-balancer-part-2-backend-section-algorithms
+
+http://cbonte.github.io/haproxy-dconv/configuration-1.6.html#balance
