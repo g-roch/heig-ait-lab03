@@ -246,7 +246,7 @@ H -> B2:  JSON \n
 >
 > Now, update the JMeter script. Go in the HTTP Cookie Manager and ~~uncheck~~verify that the box `Clear cookies each iteration?` is unchecked.
 
-![](/home/wewelox/Documents/heig-ait-lab/Labo_3/img/task02-05-jmeter-with-serverid.png)
+![](img/task02-05-jmeter-with-serverid.png)
 
 
 
@@ -314,7 +314,7 @@ Nous sommes sur le s1 car c'est une nouvelle connexion.
 
 On se retrouve de nouveau sur le s1 ce qui est normal. => expliquer pq
 
-![](/home/wewelox/Documents/heig-ait-lab/Labo_3/img/task03-05-01.png)![](img/task03-05-02.png)
+![](img/task03-05-01.png)![](img/task03-05-02.png)
 
 
 
@@ -355,20 +355,60 @@ Après avoir supprimé les cookies sur les deux navigateurs :
 
 ### 4. Le mode dégradé avec Round Robin
 
-1. Make sure a delay of 0 milliseconds is set on `s1`. Do a run to have a baseline to compare with in the next experiments.
-2. Set a delay of 250 milliseconds on `s1`. Relaunch a run with the JMeter script and explain what is happening.
-3. Set a delay of 2500 milliseconds on `s1`. Same than previous step.
-4. In the two previous steps, are there any errors? Why?
-5. Update the HAProxy configuration to add a weight to your nodes. For that, add `weight [1-256]` where the value of weight is between the two values (inclusive). Set `s1` to 2 and `s2` to 1. Redo a run with a 250ms delay.
-6. Now, what happens when the cookies are cleared between  each request and the delay is set to 250ms? We expect just one or two  sentence to summarize your observations of the behavior with/without  cookies.
+#### 4.1
+
+> Make sure a delay of 0 milliseconds is set on `s1`. Do a run to have a baseline to compare with in the next experiments.
+
+on envoie une requête POST avec un delay de 0 milliseconds pour être sûr qu'on a rien de configuràé sur S1. On le fait également pour S2.
+
+```sh
+curl -H "Content-Type: application/json" -X POST -d '{"delay": 0}' http://192.168.42.11:3000/delay
+curl -H "Content-Type: application/json" -X POST -d '{"delay": 0}' http://192.168.42.21:3000/delay
+```
+
+
+
+#### 4.2
+
+> Set a delay of 250 milliseconds on `s1`. Relaunch a run with the JMeter script and explain what is happening.
+
+
+
+#### 4.3
+
+> Set a delay of 2500 milliseconds on `s1`. Same than previous step.
+
+
+
+#### 4.4
+
+> In the two previous steps, are there any errors? Why?
+
+
+
+#### 4.5
+
+> Update the HAProxy configuration to add a weight to your nodes. For that, add `weight [1-256]` where the value of weight is between the two values (inclusive). Set `s1` to 2 and `s2` to 1. Redo a run with a 250ms delay.
+
+#### 4.6
+
+> Now, what happens when the cookies are cleared between  each request and the delay is set to 250ms? We expect just one or two  sentence to summarize your observations of the behavior with/without  cookies.
 
 
 
 ### 5. Les stratégies de load balancing
 
-1. Briefly explain the strategies you have chosen and why you have chosen them.
-2. Provide evidence that you have played with the two strategies (configuration done, screenshots, ...)
-3. Compare the two strategies and conclude which is the best for this lab (not necessary the best at all).
+#### 5.1
+
+> Briefly explain the strategies you have chosen and why you have chosen them.
+
+#### 5.2
+
+> Provide evidence that you have played with the two strategies (configuration done, screenshots, ...)
+
+#### 5.3
+
+> Compare the two strategies and conclude which is the best for this lab (not necessary the best at all).
 
 
 
