@@ -6,9 +6,9 @@
 
 ## Introduction
 
-Dans ce laboratoire, nous allons déployer une applcation web 
+Dans ce laboratoire, nous allons effectuer plusieurs tâches concernant le load balancing; nous prendrons connaissance du fonctionnement de HAProxy.
 
-TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+De plus, nous utiliserons JMeter afin de tester l'application.
 
 ## Tâches
 
@@ -66,19 +66,15 @@ On constate qu'il y a une alternance entre les deux serveurs à chaque fois qu'o
 
 Nous remarquons que le `sessionViews` est à 1, peu importe le nombre d'accès au serveur qu'on fait. Cela est dû au fait qu'aucune session n'est créée. 
 
-Nous voyons également que les cookies ne sont pas pris en compte par le load balancing à cette étape. Ceci ne permet donc pas de garder un état entre les connexions dû au fait que le protocole HTTP est un protocole sans état. Il serait possible de maintenir cette connexion à l'aide d'un cookie.
-
-TODO: set-cookie entre serveurs
+Nous voyons également que les cookies ne sont pas pris en compte par le load balancing à cette étape. Ceci ne permet donc pas de garder un état entre les connexions dû au fait que le protocole HTTP est un protocole sans état. 
 
 #### 1.2
 
 > Explain what should be the correct behavior of the load balancer for session management.
 
+Si on prend en compte les sessions, quelque soit le nombre de requêtes que l'on fait sur le HAProxy, on communiquera toujours avec le même serveur. Ceci permettra que les informations de sessions soient cohérentes et pas réinitialisées à chaque requête.
 
-
-pour une session donnée quelque soit le nombre de requête on devrait tombe toujours sur le même serveur pour que les infos de session soient cohérentes et pas resettée à chaque fois
-
-screens coupés du haut avec des cookies envoyés à chaque fois
+De plus, l'attribut `sessionViews` sera incrémenté à chaque requête.
 
 #### 1.3
 
@@ -89,18 +85,18 @@ participant Browser AS B
 participant HaProxy AS H
 participant S1 AS S1
 participant S2 AS S2
-B -> H: GET /\nsans cookie
-H -> S1: GET / \n(port 300)\nsans cookie
+B -> H: GET / \n 192.168.42.42:3000\nsans cookie
+H -> S1: GET / \n192.168.42.11:3000\nsans cookie
 S1 -> H: JSON \n set cookie: ABC
 H -> B:  JSON \n set cookie: ABC
-B -> H: GET /\n cookie: ABC
-H -> S2: GET / \n(port 300)\n cookie: ABC
+B -> H: GET / \n 192.168.42.42:3000\n cookie: ABC
+H -> S2: GET / \n192.168.42.22:3000\n cookie: ABC
 S2 -> H: JSON \n set cookie: 123
 H -> B:  JSON \n set cookie: 123
 
 ```
 
-Nous voyons que les requêtes successives sont envoyées à des serveurs différents (S1 et S2). Mais comme ils ne connaissent pas les sessions de l'un et l'autre, ils recréent des sessions à chaque fois.
+Nous voyons que les requêtes successives sont envoyées à des serveurs différents (S1 et S2). Mais comme ils ne connaissent pas les sessions de l'un et l'autre, ils recréent des sessions à chaque fois avec un `set-cookie`.
 
 #### 1.4
 
@@ -112,19 +108,25 @@ Nous voyons que les requêtes successives sont envoyées à des serveurs différ
 
 > Clear the results in JMeter and re-run the test plan. Explain what is happening when only one node remains active. Provide another sequence diagram using the same model as the previous one.
 
-Il envoie des requêtes qu'au serveur actif car HaProxy détecte que S1 est stoppé. S2 ne renvoie donc pas de set cookie car il connait la session reçue (cookie ABC).
+Nous avons premièrement stoppé le S1:
+
+```sh
+docker stop s1
+```
+
+Ainsi, HAProxy envoie des requêtes qu'au serveur actif , S2, car il détecte que S1 est stoppé. S2 ne renvoie donc pas de `set-cookie` car il connait la session reçue (cookie ABC).
 
 ```sequence
 participant Browser AS B
 participant HaProxy AS H
 participant S2 AS S2
 participant S1 AS S1
-B -> H: GET /\nsans cookie
-H -> S2: GET / \n(port 300)\nsans cookie
+B -> H: GET / \n 192.168.42.42:3000\nsans cookie
+H -> S2: GET / \n 192.168.42.22:3000\nsans cookie
 S2 -> H: JSON \n set cookie: ABC
 H -> B:  JSON \n set cookie: ABC
-B -> H: GET /\n cookie: ABC
-H -> S2: GET / \n(port 300)\n cookie: ABC
+B -> H: GET /\n 192.168.42.42:3000\n cookie: ABC
+H -> S2: GET / \n 192.168.42.22:3000\n cookie: ABC
 S2 -> H: JSON \n 
 H -> B:  JSON \n 
 
@@ -134,48 +136,56 @@ H -> B:  JSON \n
 
 ![task01-04-jmetter-degraded](img/task01-04-jmetter-degraded.png)
 
+Nous remarquons effectivement que les tests ne sont effectués que sur S2.
+
 ### 2. La persistence des sessions
 
 #### 2.1 
 
+> There is different way to implement the sticky session. One possibility  is to use the SERVERID provided by HAProxy. Another way is to use the  NODESESSID provided by the application. Briefly explain the difference  between both approaches (provide a sequence diagram with cookies to show the difference).
+
 > SERVERID
 
-2 cookies chez le client, pas lié au fonctionnement de l'app node
-si node n'utilise pas de cookies c'est le HaProxy qui créera des cookies
+Nous voyons sur le digramme ci-dessous, que le client possède deux cookies différents:
+
+- `NODESSESSID` qui est lié à l'application
+- `SERVERID` qui identifie le noeud et qui est défini par le HAProxy. Il n'est pas lié à l'application et donc il fonctionne quelque soit l'application.
 
 ```sequence
 participant Browser AS B
 participant HaProxy AS H
 participant S1 AS S2
-B -> H: GET /\nsans cookie
-H -> S2: GET / \n(port 300)\nsans cookie
+B -> H: GET /\n 192.168.42.42:3000\nsans cookie
+H -> S2: GET / \n 192.168.42.11:3000\nsans cookie
 S2 -> H: JSON \n set-cookie: NODESESSID=ABC
 H -> B:  JSON \n set-cookie: NODESESSID=ABC; SERVERID=S1
-B -> H: GET /\n cookie: NODESESSID=ABC; SERVERID=S1
-H -> S2: GET / \n(port 300)\n cookie: NODESESSID=ABC
+B -> H: GET /\n 192.168.42.42:3000\n cookie: NODESESSID=ABC; SERVERID=S1
+H -> S2: GET / \n\n 192.168.42.11:3000\n cookie: NODESESSID=ABC
 S2 -> H: JSON \n 
 H -> B:  JSON \n 
 
 ```
+
+> NODESESSID
+
+Lors de l'utilisation de `NODESESSID`, nous ne configurons plus qu'un cookie qui est directement lià à notre application. Il pourrait y avoir un souci si l'application déciderait de modifier le cookie et que HAProxy n'arrive pas à detecter la modification. HAProxy ne saurait plus vers quel serveur il doit envoyer la requête, donc il pourrait avoir un problème avec la session.
+
+Lors de l'utilisation de cet unique cookie, HAProxy sait vers quel serveur rediriger les requêtes car il garde une table de mapping en interne.
 
 ```sequence
 participant Browser AS B
 participant HaProxy AS H
 participant S1 AS S2
-B -> H: GET /\nsans cookie
-H -> S2: GET / \n(port 300)\nsans cookie
+B -> H: GET /\n 192.168.42.42:3000\nsans cookie
+H -> S2: GET / \n\n 192.168.42.11:3000\nsans cookie
 S2 -> H: JSON \n set-cookie: NODESESSID=ABC
 H -> B:  JSON \n set-cookie: NODESESSID=ABC
-B -> H: GET /\n cookie: NODESESSID=ABC
-H -> S2: GET / \n(port 300)\n cookie: NODESESSID=ABC
+B -> H: GET /\n 192.168.42.42:3000\n cookie: NODESESSID=ABC
+H -> S2: GET /\n 192.168.42.11:3000\n cookie: NODESESSID=ABC
 S2 -> H: JSON \n 
 H -> B:  JSON \n 
 
 ```
-
-
-
-peut avoir des soucis
 
 #### 2.2
 
@@ -190,23 +200,23 @@ server s2 ${WEBAPP_2_IP}:3000 cookie S2 check
 cookie SERVERID insert
 ````
 
+Nous avons modifié le fichier de configuration de HAProxy afin de configurer le sticky session. Pour cela, nous avons ajouté un paramètre sur chaque noeud de la liste afin de lui ajouter un cookie.
+
+Puis nous avons ajouté une ligne qui précise que les cookies utilisés sont de type `SERVERID` et le paramètre `insert` permet d'ajouter un cookie s'il n'existe pas.
+
+Ainsi, pour la suite des manipulations, nous utiliserons l'approche`SERVERID`.
+
 ![task02-02](img/task02-02-diff-config-haproxy.png)
-
-
 
 #### 2.3
 
 > Explain what is the behavior when you open and refresh the URL http://192.168.42.42 in your browser. Add screenshots to complement your explanations. We expect that you take a deeper a look at session management.
 
-
-
-screenshotss
-
-
+Nous constatons que lors de la première requête, nous sommes redirigés sur le S2 et nous pouvons voir que dans la réponse il y a les deux cookies, `NODESSESSID` et `SERVERID`. Pour le second cookie, nous voyons que sa valeur est `S2` ce qui est correct. 
 
 ![task02-03-request-01](img/task02-03-request-01.png)
 
-
+Lorsque l'on rafraîchit la page, nous sommes également redirigés vers le serveur S2. Nous constatons que le `sessionViews` est incrémenté de 1. Le comportement est celui attendu car grâce aux cookies, nous gardons la même session.
 
 ![task02-03-request-02](img/task02-03-request-02.png)
 
@@ -222,43 +232,46 @@ participant Browser2 AS B2
 participant HaProxy AS H
 participant S1 AS S1
 participant S2 AS S2
-B -> H: GET /\nsans cookie
-H -> S2: GET / \n(port 300)\nsans cookie
+B -> H: GET /\n 192.168.42.42:3000\nsans cookie
+H -> S2: GET / \n 192.168.42.22:3000\nsans cookie
 S2 -> H: JSON \n set-cookie: NODESESSID=ABC
 H -> B:  JSON \n set-cookie: NODESESSID=ABC; SERVERID=S2
-B -> H: GET /\n cookie: NODESESSID=ABC; SERVERID=S2
-H -> S2: GET / \n(port 300)\n cookie: NODESESSID=ABC
+B -> H: GET /\n 192.168.42.42:3000\n cookie: NODESESSID=ABC; SERVERID=S2
+H -> S2: GET / \n 192.168.42.22:3000\n cookie: NODESESSID=ABC
 S2 -> H: JSON \n 
 H -> B:  JSON \n 
-B2 -> H: GET /\nsans cookie
-H -> S1: GET / \n(port 300)\nsans cookie
+B2 -> H: GET /\n 192.168.42.42:3000\nsans cookie
+H -> S1: GET / \n\n 192.168.42.11:3000\nsans cookie
 S1 -> H: JSON \n set-cookie: NODESESSID=ABC
 H -> B2:  JSON \n set-cookie: NODESESSID=ABC; SERVERID=S1
-B2 -> H: GET /\n cookie: NODESESSID=ABC; SERVERID=S1
-H -> S1: GET / \n(port 300)\n cookie: NODESESSID=ABC
+B2 -> H: GET /\n 192.168.42.42:3000\n cookie: NODESESSID=ABC; SERVERID=S1
+H -> S1: GET / \n 192.168.42.11:3000\n cookie: NODESESSID=ABC
 S1 -> H: JSON \n 
 H -> B2:  JSON \n 
 ```
+
+
 
 #### 2.5
 
 > Provide a screenshot of JMeter's summary report. Is there a difference with this run and the run of Task 1?
 >
-> Now, update the JMeter script. Go in the HTTP Cookie Manager and ~~uncheck~~verify that the box `Clear cookies each iteration?` is unchecked.
 
 ![](img/task02-05-jmeter-with-serverid.png)
 
-
+Nous remarquons que toutes les requêtes atteignent le serveur S1 alors que dans la task 1 les requêtes étaient partagés entre les serveurs S1 et S2 dû à la configuration du round-robin.
 
 #### 2.7
 
+> Now, update the JMeter script. Go in the HTTP Cookie Manager and ~~uncheck~~verify that the box `Clear cookies each iteration?` is unchecked.
+>
+> Go in `Thread Group` and update the `Number of threads`. Set the value to 2.
+>
 > Provide a screenshot of JMeter's summary report. Give a short explanation of what the load balancer is doing.
-
-
 
 ![](img/task02-07-jmeter.png)
 
-
+Nous voyons que le premier thread sera assigné à un serveur grâce à un cookie et il sera toujours redirigé dessus. Le second thread est assigné au deuxième serveur et il restera également dessus. 
 
 ### 3. Le drainage des connexions
 
@@ -266,9 +279,11 @@ H -> B2:  JSON \n
 
 > Take a screenshot of step 5 and tell us which node is answering.
 
+Nous avons rafraîchit la page plusieurs fois, 18 fois,  et nous constatons que le noeud qui répond est le serveur S2.
+
 ![](img/task-03-01-00.png)![](img/task03-01-01.png)
 
-encadré s1 + s2 nodes + state
+Nous constatons que les deux serveurs sont UP et que nous avons une session sur S2.
 
 
 
@@ -276,9 +291,13 @@ encadré s1 + s2 nodes + state
 
 > Based on your previous answer, set the node in DRAIN mode. Take a screenshot of the HAProxy state page.
 
+Afin de configurer le mode `DRAIN` sur S2, on exécute cette commande avec `socat`:
+
 ```sh
 set server nodes/s2 state drain
 ```
+
+Nous voyons qu'en bleu foncé sur la capture ci-dessus, le serveur S2 est bien en mode `DRAIN`.
 
 ![](img/task03-02.png)
 
@@ -290,9 +309,7 @@ set server nodes/s2 state drain
 
 Nous sommes toujours sur le même noeud car le cookie nous indique que nous devons aller sur ce noeud (`s2`) et donc HAProxy nous laisse communiquer avec le `s2`. 
 
-
-
-Drain : explain
+Ce comportement est expliqué par le mode `DRAIN` car étant donné qu'on a configuré le serveur S2 dans ce mode et qu'on avait déjà une session liée à ce serveur, on est toujours redirigé sur ce dernier. Par contre, le nouveau trafic sera redirigé sur S1.
 
 ![](img/task03-02-01.png)
 
@@ -302,7 +319,7 @@ Drain : explain
 
 > Open another browser and open `http://192.168.42.42`. What is happening?
 
-Nous sommes sur le s1 car c'est une nouvelle connexion.
+Nous sommes sur le S1 car c'est une nouvelle connexion.
 
 ![](img/task03-04-01.png)
 
@@ -310,11 +327,9 @@ Nous sommes sur le s1 car c'est une nouvelle connexion.
 
 > Clear the cookies on the new browser and repeat these two steps multiple times. What is happening? Are you reaching the node in DRAIN mode?
 
+On se retrouve de nouveau sur le S1 ce qui est normal car nous n'avons plus de cookie `SERVEID` lié au S2. De ce fait, nous ne pouvons plus atteindre S2.
 
-
-On se retrouve de nouveau sur le s1 ce qui est normal. => expliquer pq
-
-![](img/task03-05-01.png)![](img/task03-05-02.png)
+![](img/task03-05-01.png)
 
 
 
@@ -322,18 +337,21 @@ On se retrouve de nouveau sur le s1 ce qui est normal. => expliquer pq
 
 > Reset the node in READY mode. Repeat the three previous steps and explain what is happening. Provide a screenshot of HAProxy's stats page.
 
+Nous avons exécuté la commande suivante:
+
+```sh
+set server nodes/s2 state ready
+```
+
+Nous voyons sur la capture ci-dessus que les deux serveurs sont UP et que le serveur S2 n'est plus configuré en mode `DRAIN`.
+
 ![](img/task03-06-00.png)
 
-Après avoir supprimé les cookies sur les deux navigateurs :
+Nous avons tout d'abord utilisé Firefox pour faire les premières étapes; lors de la première connexion, on est redirigé sur le serveur S2. Une fois la page rafraîchie, on reste sur S2. Ceci est dû aux cookies.
 
-- Firefox : après refresh, on reste sur s2
-  - pourquoi :
-- Chrome :  
-  - comment : chrome obtient une session vers un des noeuds, on a une chance sur deux de tomber sur 1 et une chance sur deux de tomber sur 2. => car round-robin. On était tombé sur s1
-  - après, clear cookies : cette fois-ci on tombe sur s2
-  - sur s1 après clear
-  - sur s2 après clear
-  - CAR round-robin
+Dans un second temps, nous avons utilisé un autre navigateur et nous avons été redirigés sur S1. Nous avions une chance sur deux de tomber sur le serveur S1 dû au round-robin.
+
+Nous avons ensuite nettoyer les cookies du second navigateur et rafraîchit la page, nous avons atteint le serveur S2. En répétant la manipulation plusieurs fois, nous sommes tombés en alternance sur S1 puis sur S2. 
 
 ![](img/task03-06-01.png)
 
@@ -343,15 +361,21 @@ Après avoir supprimé les cookies sur les deux navigateurs :
 
 > Finally, set the node in MAINT mode. Redo the three same steps and explain what is happening. Provide a screenshot of HAProxy's stats page.
 
+Nous avons exécuté la commande suivante:
+
+```sh
+set server nodes/s2 state maint
+```
+
+Nous voyons sur la capture ci-dessus que les deux serveurs sont UP et que le serveur S2 est configuré en mode `MAINT`.
+
 ![](img/task03-07-00.png)
 
-- Firefox : refresh : on a été placé sur le s1 alors que de base on était sur le s2
+Nous avons tout d'abord utilisé Firefox pour faire les premières étapes; la session déjà existante qui pointait sur S2, une fois rafraîchie, a été redirigé vers S1 qui est le seul serveur actif.
 
-- chrome : refresh, on est toujours sur s1
-  - après supp cookies, on est toujours sur s1
-  - après supp cookies, one st encore et toujorus sur s1
+Dans un second temps, nous avons utilisé un autre navigateur et nous sommes directement dirigé sur S1. 
 
-
+Peu importe le nombre de rafraîchissements et du nombre de cookies, toutes les requêtes sont redirigées vers S1.
 
 ### 4. Le mode dégradé avec Round Robin
 
