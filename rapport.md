@@ -51,6 +51,8 @@ Une fois toute la mise en place faite, nous pouvons nous rendre sur le load bala
 
 En contrôlant, la requête de la page, nous constatons que le `NODESESSID` est bien envoyé à notre navigateur.
 
+
+
 #### 1.1
 
 > Explain how the load balancer behaves when you open and refresh the URL http://192.168.42.42 in your browser. Add screenshots to complement your explanations. We expect that you take a deeper a look at session management.
@@ -69,6 +71,8 @@ Nous remarquons que le `sessionViews` est à 1, peu importe le nombre d'accès a
 
 Nous voyons également que les cookies ne sont pas pris en compte par le load balancing à cette étape. Ceci ne permet donc pas de garder un état entre les connexions dû au fait que le protocole HTTP est un protocole sans état. 
 
+
+
 #### 1.2
 
 > Explain what should be the correct behavior of the load balancer for session management.
@@ -76,6 +80,8 @@ Nous voyons également que les cookies ne sont pas pris en compte par le load ba
 Si on prend en compte les sessions, quelque soit le nombre de requêtes que l'on fait sur le HAProxy, on communiquera toujours avec le même serveur. Ceci permettra que les informations de sessions soient cohérentes et pas réinitialisées à chaque requête.
 
 De plus, l'attribut `sessionViews` sera incrémenté à chaque requête.
+
+
 
 #### 1.3
 
@@ -99,6 +105,8 @@ H -> B:  JSON \n set cookie: 123
 
 Nous voyons que les requêtes successives sont envoyées à des serveurs différents (S1 et S2). Mais comme ils ne connaissent pas les sessions de l'un et l'autre, ils recréent des sessions à chaque fois avec un `set-cookie`.
 
+
+
 #### 1.4
 
 > Provide a screenshot of the summary report from JMeter.
@@ -106,6 +114,8 @@ Nous voyons que les requêtes successives sont envoyées à des serveurs différ
 ![task01-03-jmetter](img/task01-03-jmetter.png)
 
 Ainsi, on voit que les requêtes sont envoyées alternativement aux serveurs S1 et S2. Chaque serveur reçoit un nombre égal de requêtes.
+
+
 
 #### 1.5
 
@@ -140,6 +150,8 @@ H -> B:  JSON \n
 ![task01-04-jmetter-degraded](img/task01-04-jmetter-degraded.png)
 
 Nous remarquons effectivement que les tests ne sont effectués que sur S2.
+
+
 
 ### 2. La persistence des sessions
 
@@ -266,6 +278,8 @@ H -> B2:  JSON \n
 
 Nous remarquons que toutes les requêtes atteignent le serveur S1 alors que dans la task 1 les requêtes étaient partagés entre les serveurs S1 et S2 dû à la configuration du round-robin. Nous pouvons expliquer cette différence avec le fait que pour cette tâche, le serveur S1 est configuré avec des sticky sessions et donc les requêtes du navigateur seront toujours redirigées vers S1.
 
+
+
 #### 2.7
 
 > Now, update the JMeter script. Go in the HTTP Cookie Manager and ~~uncheck~~verify that the box `Clear cookies each iteration?` is unchecked.
@@ -278,6 +292,8 @@ Nous remarquons que toutes les requêtes atteignent le serveur S1 alors que dans
 
 Nous voyons que le premier thread sera assigné à un serveur grâce à un cookie et il sera toujours redirigé dessus. Le second thread est assigné au deuxième serveur et il restera également dessus. 
 
+
+
 ### 3. Le drainage des connexions
 
 #### 3.1
@@ -289,6 +305,8 @@ Nous avons rafraîchit la page plusieurs fois, 18 fois,  et nous constatons que 
 ![](img/task-03-01-00.png)![](img/task03-01-01.png)
 
 Nous constatons que les deux serveurs sont UP et que nous avons une session sur S2.
+
+
 
 #### 3.2
 
@@ -334,8 +352,6 @@ On se retrouve de nouveau sur le S1 ce qui est normal car nous n'avons plus de c
 
 ![](img/task03-05-01.png)
 
-
-
 #### 3.6
 
 > Reset the node in READY mode. Repeat the three previous steps and explain what is happening. Provide a screenshot of HAProxy's stats page.
@@ -380,6 +396,8 @@ Dans un second temps, nous avons utilisé un autre navigateur et nous sommes dir
 
 Peu importe le nombre de rafraîchissements et du nombre de cookies, toutes les requêtes sont redirigées vers S1 dû au fait que le serveur S2 est configuré en mode `MAINT` et que tout le nouveau et actuel trafic est redirigé vers les autres noeuds actifs.
 
+
+
 ### 4. Le mode dégradé avec Round Robin
 
 #### 4.1
@@ -397,6 +415,8 @@ curl -H "Content-Type: application/json" -X POST -d '{"delay": 0}' http://192.16
 
 Nous voyons dans le rapport JMeter que HAProxy fonctionne normalement et envoie les requêtes en alternance sur les serveurs S1 et S2.
 
+
+
 #### 4.2
 
 > Set a delay of 250 milliseconds on `s1`. Relaunch a run with the JMeter script and explain what is happening.
@@ -413,7 +433,9 @@ curl -H "Content-Type: application/json" -X POST -d '{"delay": 250}' http://192.
 
 Nous n'avons pas attendu que S1 effectue ses 1000 requêtes car cela nous aurait pris trop de temps d'attendre la fin du rapport.
 
-Nous constatons effectivement que S1 effectue des requêtes toutes les 250 millisecondes. Nous remarquons également qu'il n'y pas eu d'erreur lors du test malgré la lenteur de notre service.
+Nous constatons effectivement que S1 effectue des requêtes toutes les 250 millisecondes. Nous nous retrouvons avec une moyenne de `3.2 - 3.3` requêtes par secondes alors que le nombre de requêtes par secondes de `S2` est beaucoup plus élevé. Aussi, nous remarquons également qu'il n'y pas eu d'erreur lors du test malgré la lenteur de notre service. Les requêtes ont été transmises entre le S1 et S2.
+
+
 
 #### 4.3
 
@@ -429,13 +451,19 @@ curl -H "Content-Type: application/json" -X POST -d '{"delay": 2500}' http://192
 
 ![](img/task04-03.png)
 
-Nous voyons que S1 a uniquement effectué 2 requêtes car il avait un temps de réponse relativement lent et que HAProxy a redirigé toutes les autres requêtes vers S2.
+Nous voyons que S1 a uniquement effectué 2 requêtes car il avait un temps de réponse relativement lent. Le load balancer redirgie vers les différents serveurs en fonction de leur état. Ici, le S1 étant plus lent, HAProxy a redirigé toutes les autres requêtes vers S2.
+
+
 
 #### 4.4
 
 > In the two previous steps, are there any errors? Why?
 
 Nous constatons que pour l'étape 2, avec un délai de 250 millisecondes, il y a 0.08% d'erreur pour les requêtes du serveur S1 ce qui correspond à une requête échouée lorsqu'on a cliqué sur le bouton stop et que la réponse n'était pas encore arrivée. Sans cette erreur de manipulation, il devrait y avoir 0% d'erreur malgré une grande lenteur du service.
+
+Le load balancer permet de détecter l'état des serveurs. Etant donné que S1 étant trop lent, HAProxy l'a retiré du pool de serveur et a redirigé le trafic vers S2 pour garder un tafic cohérent et sans erreur. 
+
+
 
 #### 4.5
 
@@ -460,7 +488,9 @@ curl -H "Content-Type: application/json" -X POST -d '{"delay": 250}' http://192.
 
 ![](img/task04-04.png)
 
-Ainsi, nous voyons sur le rapport JMeter que HAProxy fonctionne normalement; les requêtes sont redirigées de manière égale entre les deux serveurs. 
+Ainsi, nous voyons sur le rapport JMeter que HAProxy fonctionne normalement; les requêtes sont redirigées de manière égale entre les deux serveurs. Ce résultat est dû au sticky session. 
+
+
 
 #### 4.6
 
@@ -471,6 +501,8 @@ Ainsi, nous voyons sur le rapport JMeter que HAProxy fonctionne normalement; les
 ![](img/task04-05.png)
 
 Nous remarquons donc qu'en nettoyant les cookies entre chaque requêtes, 2/3 des requêtes vont sur S1 et le 1/3 restant sur S2, on peut expliquer cela avec le fait que S1 a un poids de 2 et S2 un poids de 1, et donc S1 reçoit logiquement 2x plus de requêtes que S2. 
+
+> Avec les cookies
 
 Alors qu'avec les cookies, chaque serveur reçoit 1000 requêtes car lorsqu'un client est connecté à un noeud, il y restera connecté jusqu'à la fin du test (malgré la lenteur du service) dû au sticky session. 
 
@@ -494,6 +526,8 @@ La stratégie `first` permet à un serveur qui a des slots de connexions de libr
 
 Nous avons décidé d'utiliser cette stratégie car elle permet d'éteindre les serveurs avec des grands id lorsqu'il y a peu de charge sur l'application.
 
+
+
 #### 5.2
 
 > Provide evidence that you have played with the two strategies (configuration done, screenshots, ...)
@@ -512,7 +546,7 @@ balance leastconn
 
 ![](img/task05-01-01.png)
 
-S2 a un peu plus travaillé que S1, car à un moment donné S1 devait être un peu plus chargé que S2, mais de manière générale la charge est répartie de manière égale.
+S2 a un peu plus travaillé que S1, car à un moment donné S1 devait être un peu plus chargé que S2, mais de manière générale la charge est répartie de manière égale (round-robin lors d'une charge égale).
 
 > Nettoyage des cookies, delay de 250 millisecondes sur S1
 
@@ -524,7 +558,9 @@ Nous pouvons constater que S1 étant plus lent à répondre, il a donc traité m
 
 ![](img/task05-01-03.png)
 
-Nous pouvons remarquer que S1 étant plus lent à répondre, il a donc traité beaucoup moins de requêtes que le serveur S2 car il lui faut plus de temps pour répondre et le serveur S2 est disponible plus rapidement.
+Nous pouvons remarquer que S1 étant plus lent à répondre, il a donc traité beaucoup moins de requêtes que le serveur S2. Puisque S1 demande plus de temps pour répondre et que le serveur S2 est disponible plus rapidement, le load balancer transmet les requêtes vers S2 et plus vers S1. 
+
+
 
 > first
 
@@ -563,6 +599,9 @@ Nous remarquons que 1/5 des requêtes sont envoyées sur S1, alors que nous avon
 #### 5.3
 
 > Compare the two strategies and conclude which is the best for this lab (not necessary the best at all).
+
+- Récap first
+- Récap leastconn
 
 En comparant tous les tests qu'on a effectué, nous remarquons que `first`  est la meilleure stratégie pour ce laboratoire car il permet de faire en sorte d'aligner la charge d'un serveur en fonction de sa capacité calculée en amont et de permettre d'éteindre les serveurs non-utilisés. 
 
