@@ -8,10 +8,6 @@ Ce laboratoire vas nous permettre de prendre en main et de mieux comprendre le f
 
 Pour faire de noubreux test sur notre infrastructure, nous utiliseront JMeter. Cette application permets de lancer de multiple requête sur un serveur et d’analyser leur réponse, nous pouvons également lui dire si nous voulons que chaque requête soit indépendante les unes des autres (suppression des cookies entre chaque requête) ou liées comme dans un usage normal.
 
-~~Dans ce laboratoire, nous allons effectuer plusieurs tâches concernant le load balancing; nous prendrons connaissance du fonctionnement de HAProxy.~~
-
-~~De plus, nous utiliserons JMeter afin de tester l'application.~~
-
 ## Tâches
 
 ### 1. Installation des outils
@@ -516,13 +512,13 @@ Alors qu'avec les cookies, chaque serveur reçoit 1000 requêtes car lorsqu'un c
 
 > Briefly explain the strategies you have chosen and why you have chosen them.
 
-> leastconn
+> **Leastconn**
 
 La stratégie `leastconn` permet au serveur qui a le moins de connexions, de recevoir la nouvelle connexion.  Elle utilise round-robin dans le cas où la charge est égale sur tous les serveurs pour s'assurer qu'ils seront tous utilisés. L'algorithme est dynamique dans le sens où les poids des serveurs seront ajustés en fonction du nombre de connexions actives.
 
 Nous avons décidé de choisir cette stratégie car elle peut être intéressante lors d'ajout de délai sur un serveur.
 
-> first
+> **First**
 
 La stratégie `first` permet à un serveur qui a des slots de connexions de libre, de recevoir la nouvelle connexion. Le serveur est choisi en fonction de son id de manière croissante. Dès qu'un serveur atteint son nombre maximum de connexion (`maxconn`), c'est le serveur suivant qui sera utilisé. Le but de cet algorithme est d'optimiser le nombre de serveurs utilisés.
 
@@ -534,7 +530,7 @@ Nous avons décidé d'utiliser cette stratégie car elle permet d'éteindre les 
 
 > Provide evidence that you have played with the two strategies (configuration done, screenshots, ...)
 
-> leastconn
+> **Leastconn**
 
 Configuration dans HAProxy afin d'utiliser la stratégie `leastconn`:
 
@@ -564,7 +560,7 @@ Nous pouvons remarquer que S1 étant plus lent à répondre, il a donc traité b
 
 
 
-> first
+> **First**
 
 Configuration dans HAProxy afin d'ajouter la stratégie `first`:
 
@@ -602,13 +598,19 @@ Nous remarquons que 1/5 des requêtes sont envoyées sur S1, alors que nous avon
 
 > Compare the two strategies and conclude which is the best for this lab (not necessary the best at all).
 
-First : 
+> **First**
+
 Cette stratégie permet d'aligner la charge d'un serveur en fonction de sa capacité calculée en amont. Elle offre donc la possibilité d'éteindre les serveurs non-utilisés et de minimiser les coûts en employant uniquement la quantité minimale de serveurs selon la charge courante. Attention, l'utilisation de cette stratégie nécessite que les serveurs puissent traiter plusieurs requêtes en même temps.
 
-Leastconn : 
-Cette deuxième stratégie est plus adapté pour des sessions à longues durée. JE SAIS PAS QuOI ECRIRE
+> **Leastconn**
 
-Conclusion => choix ???
+Cette deuxième stratégie est plus adapté pour des sessions à longues durée. Cela permet de ne pas renvoyer une requête à ce serveur, notament lorsqu’il est occupé à traiter un requête d’un client qui prends plusieurs secondes/minutes. Cependant pour que cela fonctionne, il faut que la connexion TCP reste ouverte, sinon le HAProxy n’a pas connaissance de ce traitement.
+
+> **Conclusion**
+
+C’est relativement compliquer d’indiquer quel est la meilleure stratégie pour ce laboratoire car il ne corresponds pas vraiment à un cas réel. Cependant si on prend comme cas d’analyse un site web dons les fichier statique (HTML/CSS/JS) sont servis par un autre serveur et que le service dynamique permet d’afficher des informations simple et rapide à calculer (une liste de prix, par exemple) mais dont certaines requête peuvent prendre plus de temps que d’autre (une liste de prix avec de multiple filtre, par exemple).
+
+Dans ce cas-là, la stratégie `leastconn` est la meilleures selon nous. Elle permets une meilleures répartition de la charge car elle permet de prendre en compte le fait que certaines requête sont plus longue à traiter. Elle ne permet pas de mettre en veille certain serveur, cependant pour un petit nombre de nœuds c’est realativement compliqué, car il y a peu de marge de manœuvre sur le nombre de serveur up/down.
 
 
 ## Conclusion
