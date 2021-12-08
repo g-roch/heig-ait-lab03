@@ -4,9 +4,9 @@
 
 ## Introduction
 
-Ce laboratoire vas nous permettre de prendre en main et de mieux comprendre le fonctionnement de HAProxy. Docker sera utiliser pour avoir plusieurs serveur sur la même machine, il y aura 1 container pour le load balancer (HAProxy) et 2 containers pour les nœuds applicatifs (nodejs). Nous pourrons comprendre comment les requêtes sont transférée aux nœuds serveur depuis HAProxy et comment le choix de quel nœud utiliser est fait.
+Ce laboratoire vas nous permettre de prendre en main et de mieux comprendre le fonctionnement de HAProxy. Docker sera utiliser pour avoir plusieurs serveur sur la même machine, il y aura 1 container pour le load balancer (HAProxy) et 2 containers pour les nœuds applicatifs (nodejs). Nous pourrons comprendre comment les requêtes sont transférées aux nœuds serveurs depuis HAProxy et comment le choix de quel nœud utilisé est fait.
 
-Pour faire de noubreux test sur notre infrastructure, nous utiliseront JMeter. Cette application permets de lancer de multiple requête sur un serveur et d’analyser leur réponse, nous pouvons également lui dire si nous voulons que chaque requête soit indépendante les unes des autres (suppression des cookies entre chaque requête) ou liées comme dans un usage normal.
+Pour faire de nombreux tests sur notre infrastructure, nous utiliserons JMeter. Cette application permet de lancer de multiple requêtes sur un serveur et d’analyser leur réponse. Nous pouvons également lui dire si nous voulons que chaque requête soit indépendante les unes des autres (suppression des cookies entre chaque requête) ou liées comme dans un usage normal.
 
 ## Tâches
 
@@ -604,35 +604,36 @@ Cette stratégie permet d'aligner la charge d'un serveur en fonction de sa capac
 
 > **Leastconn**
 
-Cette deuxième stratégie est plus adapté pour des sessions à longues durée. Cela permet de ne pas renvoyer une requête à ce serveur, notament lorsqu’il est occupé à traiter un requête d’un client qui prends plusieurs secondes/minutes. Cependant pour que cela fonctionne, il faut que la connexion TCP reste ouverte, sinon le HAProxy n’a pas connaissance de ce traitement.
+Cette deuxième stratégie est plus adaptée pour des sessions à longue durée. Cela permet de ne pas renvoyer une requête à ce serveur, notament lorsqu’il est occupé à traiter un requête d’un client qui prends plusieurs secondes/minutes. Cependant pour que cela fonctionne, il faut que la connexion TCP reste ouverte, sinon le HAProxy n’a pas connaissance de ce traitement.
 
 > **Conclusion**
 
-C’est relativement compliquer d’indiquer quel est la meilleure stratégie pour ce laboratoire car il ne corresponds pas vraiment à un cas réel. Cependant si on prend comme cas d’analyse un site web dons les fichier statique (HTML/CSS/JS) sont servis par un autre serveur et que le service dynamique permet d’afficher des informations simple et rapide à calculer (une liste de prix, par exemple) mais dont certaines requête peuvent prendre plus de temps que d’autre (une liste de prix avec de multiple filtre, par exemple).
+C’est relativement compliquer d’indiquer quel est la meilleure stratégie pour ce laboratoire car il ne corresponds pas vraiment à un cas réel. Cependant si on prend comme cas d’analyse :
+un site web dont les fichiers statiques (HTML/CSS/JS) sont servis par un autre serveur, que le service dynamique permet d’afficher des informations simples et rapides à calculer (une liste de prix, par exemple) mais dont certaines requêtes peuvent prendre plus de temps que d’autres (une liste de prix avec de multiple filtre, par exemple). Dans ce cas-là, nous conseillons d'utiliser le leastconn.
 
-Dans ce cas-là, la stratégie `leastconn` est la meilleures selon nous. Elle permets une meilleures répartition de la charge car elle permet de prendre en compte le fait que certaines requête sont plus longue à traiter. Elle ne permet pas de mettre en veille certain serveur, cependant pour un petit nombre de nœuds c’est realativement compliqué, car il y a peu de marge de manœuvre sur le nombre de serveur up/down.
+Cette stratégie `leastconn` est la meilleures selon nous. Elle permets une meilleures répartition de la charge car elle prend en compte le fait que certaines requêtes sont plus longue à traiter. Elle ne permet pas de mettre en veille certains serveurs, cependant pour un petit nombre de nœuds c’est realativement compliqué car il y a peu de marge de manœuvre sur le nombre de serveurs up/down.
 
 
 ## Conclusion
 
-Ce laboratoire a permit de tester differente approche de load balancer : 
+Ce laboratoire a permis de tester différentes approches de load balancer : 
 
-- **round-robin** : les serveurs reçoivent de nouvelle connexion chaqu’un leur tour
-- **leastconn** : le serveur ayant le moins de connexion reçois la prochaines nouvelle connexion
-- **first** : le premier serveur reçois autant de connexion qu’il est capable de gérer (selon la configuration) puis c’est le tour du serveur suivant
+- **round-robin** : les serveurs reçoivent de nouvelles connexions chacun leur tour
+- **leastconn** : le serveur ayant le moins de connexion reçoit la prochaines nouvelle connexion
+- **first** : le premier serveur reçoit autant de connexion qu’il est capable de gérer (selon la configuration) puis c’est le tour du serveur suivant
 
-Nous avons également expérimenter 2 methode pour lier les sessions des clients avec un unique serveur.
+Nous avons également expérimenté 2 methodes pour lier les sessions des clients avec un unique serveur.
 
-- **SERVERID** : un cookie est ajouter par HAProxy pour lui permettre d’idententifier à quel nœud il doit transferer la requête
+- **SERVERID** : un cookie est ajouté par HAProxy pour lui permettre d’idententifier à quel nœud il doit transferer la requête
 - **Cookie de session de l’application** : HAProxy réutilise un cookie de l’application et utilise un mappage interne pour identienfier à quel serveur il doit transmettre la requête. Ce cookie doit être unique et avoir de très faible risque de collision entre les différents nœuds.
 
-Lors du fonctionnement de HAProxy les nœuds peuvent être dans diverses états, voici les 3 qui ont été tester durant ce laboratoire :
+Lors du fonctionnement de HAProxy les nœuds peuvent être dans divers états, voici les 3 qui ont été testés durant ce laboratoire :
 
 - **READY** : Mode de fonctionnement standard, le serveur est apte à recevoir des requêtes
-- **DRAIN** : Le serveur peux continuer à recevoir des requêtes de session en cours, mais il n’obtient plus aucune nouvelle session
-- **MAINT** : Le serveur est en mode maintenance, plus aucune requête ne lui est transmisse. Les sessions qui lui était lier vont donc se briser
+- **DRAIN** : Le serveur peut continuer à recevoir des requêtes de session en cours, mais il n’obtient plus aucune nouvelle session
+- **MAINT** : Le serveur est en mode maintenance, plus aucune requête ne lui est transmisse. Les sessions qui lui étaient liées vont donc se briser et de nouvelles sessions seront créées sur un autre serveur (ou plusieurs)
 
-L’outils JMeter a été utiliser pour faire des tests. Seul un script fourni a été utiliser, peux de connaissance on donc été aquise sur cette application.
+L’outils JMeter a été utilisé pour faire des tests. Seul un script fourni a été utilisé, peu de connaissances ont été aquises sur cette application.
 
 ## Annexes
 
