@@ -1,14 +1,16 @@
-
-
 # Labo 3 - Load Balancing
 
 > Auteurs: Gwendoline Dössegger, Noémie Plancherel, Gaby Roch
 
 ## Introduction
 
-Dans ce laboratoire, nous allons effectuer plusieurs tâches concernant le load balancing; nous prendrons connaissance du fonctionnement de HAProxy.
+Ce laboratoire vas nous permettre de prendre en main et de mieux comprendre le fonctionnement de HAProxy. Docker sera utiliser pour avoir plusieurs serveur sur la même machine, il y aura 1 container pour le load balancer (HAProxy) et 2 containers pour les nœuds applicatifs (nodejs). Nous pourrons comprendre comment les requêtes sont transférée aux nœuds serveur depuis HAProxy et comment le choix de quel nœud utiliser est fait.
 
-De plus, nous utiliserons JMeter afin de tester l'application.
+Pour faire de noubreux test sur notre infrastructure, nous utiliseront JMeter. Cette application permets de lancer de multiple requête sur un serveur et d’analyser leur réponse, nous pouvons également lui dire si nous voulons que chaque requête soit indépendante les unes des autres (suppression des cookies entre chaque requête) ou liées comme dans un usage normal.
+
+~~Dans ce laboratoire, nous allons effectuer plusieurs tâches concernant le load balancing; nous prendrons connaissance du fonctionnement de HAProxy.~~
+
+~~De plus, nous utiliserons JMeter afin de tester l'application.~~
 
 ## Tâches
 
@@ -611,7 +613,24 @@ Conclusion => choix ???
 
 ## Conclusion
 
+Ce laboratoire a permit de tester differente approche de load balancer : 
 
+- **round-robin** : les serveurs reçoivent de nouvelle connexion chaqu’un leur tour
+- **leastconn** : le serveur ayant le moins de connexion reçois la prochaines nouvelle connexion
+- **first** : le premier serveur reçois autant de connexion qu’il est capable de gérer (selon la configuration) puis c’est le tour du serveur suivant
+
+Nous avons également expérimenter 2 methode pour lier les sessions des clients avec un unique serveur.
+
+- **SERVERID** : un cookie est ajouter par HAProxy pour lui permettre d’idententifier à quel nœud il doit transferer la requête
+- **Cookie de session de l’application** : HAProxy réutilise un cookie de l’application et utilise un mappage interne pour identienfier à quel serveur il doit transmettre la requête. Ce cookie doit être unique et avoir de très faible risque de collision entre les différents nœuds.
+
+Lors du fonctionnement de HAProxy les nœuds peuvent être dans diverses états, voici les 3 qui ont été tester durant ce laboratoire :
+
+- **READY** : Mode de fonctionnement standard, le serveur est apte à recevoir des requêtes
+- **DRAIN** : Le serveur peux continuer à recevoir des requêtes de session en cours, mais il n’obtient plus aucune nouvelle session
+- **MAINT** : Le serveur est en mode maintenance, plus aucune requête ne lui est transmisse. Les sessions qui lui était lier vont donc se briser
+
+L’outils JMeter a été utiliser pour faire des tests. Seul un script fourni a été utiliser, peux de connaissance on donc été aquise sur cette application.
 
 ## Annexes
 
