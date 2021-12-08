@@ -600,10 +600,14 @@ Nous remarquons que 1/5 des requêtes sont envoyées sur S1, alors que nous avon
 
 > Compare the two strategies and conclude which is the best for this lab (not necessary the best at all).
 
-- Récap first
-- Récap leastconn
+First : 
+Cette stratégie permet d'aligner la charge d'un serveur en fonction de sa capacité calculée en amont. Elle offre donc la possibilité d'éteindre les serveurs non-utilisés et de minimiser les coûts en employant uniquement la quantité minimale de serveurs selon la charge courante. Attention, l'utilisation de cette stratégie nécessite que les serveurs puissent traiter plusieurs requêtes en même temps.
 
-En comparant tous les tests qu'on a effectué, nous remarquons que `first`  est la meilleure stratégie pour ce laboratoire car il permet de faire en sorte d'aligner la charge d'un serveur en fonction de sa capacité calculée en amont et de permettre d'éteindre les serveurs non-utilisés. 
+Leastconn : 
+Cette deuxième stratégie est plus adapté pour des sessions à longues durée. JE SAIS PAS QuOI ECRIRE
+
+Conclusion => choix ???
+
 
 ## Conclusion
 
